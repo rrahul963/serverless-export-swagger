@@ -49,6 +49,10 @@ const exportApi = function exportApi(serverless) {
               's3BucketName' in settings.swaggerDestinations
               && 's3KeyName' in settings.swaggerDestinations
             ) {
+              var acl = 'private';
+              if ('acl' in settings.swaggerDestinations) {
+                acl = settings.swaggerDestinations.acl;
+              }
               serverless.getProvider('aws').request(
                 'S3',
                 'putObject',
@@ -56,6 +60,7 @@ const exportApi = function exportApi(serverless) {
                   Body: r.body,
                   Bucket: settings.swaggerDestinations.s3BucketName,
                   Key: settings.swaggerDestinations.s3KeyName,
+                  ACL: acl
                 },
                 serverless.getProvider('aws').getStage(),
                 serverless.getProvider('aws').getRegion(),

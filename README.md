@@ -22,4 +22,6 @@ custom:
   swaggerDestinations:
     s3BucketName: 'bucket-name'
     s3KeyName: 'swagger/api.json'
+    # optional, default: private
+    acl: public-read
 ```
