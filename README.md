@@ -21,7 +21,10 @@ plugins:
 custom:
   swaggerDestinations:
     s3BucketName: 'bucket-name'
-    s3KeyName: 'swagger/api.json'
+    s3KeyName: 'swagger/api'
     # optional, default: private
     acl: public-read
+    #optional settings to upload yaml and openapi files.
+    uploadOpenAPI: true
+    uploadYaml: true
 ```

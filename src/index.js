@@ -38,6 +38,57 @@ const getSwagger = async function getSwagger(apiName, stage, region, creds) {
   return swagger
 }
 
+const getSwaggerYaml = async function getSwagger(apiName, stage, region, creds) {
+  const ag = new AWS.APIGateway({
+    credentials: creds,
+    region,
+  })
+  const swaggeryaml = await ag.getExport({
+    exportType: 'swagger',
+    restApiId: apiName,
+    stageName: stage,
+    accepts: 'application/yaml',
+    parameters: {
+      extensions: 'integrations',
+    },
+  }).promise()
+  return swaggeryaml
+}
+
+const getOpenapi = async function getOpenapi(apiName, stage, region, creds) {
+  const ag = new AWS.APIGateway({
+    credentials: creds,
+    region,
+  })
+  const oas30 = await ag.getExport({
+    exportType: 'oas30',
+    restApiId: apiName,
+    stageName: stage,
+    accepts: 'application/json',
+    parameters: {
+      extensions: 'integrations',
+    },
+  }).promise()
+  return oas30
+}
+
+const getOpenapiYaml = async function getOpenapi(apiName, stage, region, creds) {
+  const ag = new AWS.APIGateway({
+    credentials: creds,
+    region,
+  })
+  const oas30yaml = await ag.getExport({
+    exportType: 'oas30',
+    restApiId: apiName,
+    stageName: stage,
+    accepts: 'application/yaml',
+    parameters: {
+      extensions: 'integrations',
+    },
+  }).promise()
+  return oas30yaml
+}
+
 const uploadSwaggerToS3 = async function uploadSwaggerToS3(swagger, bucket, key, region, creds) {
   const s3 = new AWS.S3({
     credentials: creds,
@@ -50,14 +101,16 @@ const uploadSwaggerToS3 = async function uploadSwaggerToS3(swagger, bucket, key,
   }).promise()
 }
 
-const getBucketAndKey = function getBucketAndKey(serverless) {
+const getServerlessOptions = function getServerlessOptions(serverless) {
   const bucket = serverless.service.custom.swaggerDestinations.s3BucketName
   const key = serverless.service.custom.swaggerDestinations.s3KeyName
+  const openapi = serverless.service.custom.swaggerDestinations.uploadOpenAPI
+  const yaml = serverless.service.custom.swaggerDestinations.uploadYaml
   if (!bucket || !key) {
     throw new Error('ExportSwagger: Bucket name and key are required fields')
   }
-  return { bucket, key }
-};
+  return { bucket, key, openapi, yaml }
+}
 
 const exportApi = async function exportApi(serverless) {
   const provider = serverless.getProvider('aws')
@@ -65,11 +118,25 @@ const exportApi = async function exportApi(serverless) {
   const region = provider.getRegion()
   const stage = provider.getStage()
   const serviceName = serverless.service.getServiceName()
-  const { bucket, key } = getBucketAndKey(serverless)
+  const { bucket, key, openapi, yaml } = getServerlessOptions(serverless)
   const apiName = await getApiName(serviceName, stage, region, awsCredentials)
   const swagger = await getSwagger(apiName, stage, region, awsCredentials)
-  await uploadSwaggerToS3(swagger, bucket, key, region, awsCredentials)
-  serverless.cli.consoleLog('ExportSwagger: File uploaded to s3.')
+  const swaggeryaml = await getSwaggerYaml(apiName, stage, region, awsCredentials)
+  const oas30 = await getOpenapi(apiName, stage, region, awsCredentials)
+  const oas30yaml = await getOpenapiYaml(apiName, stage, region, awsCredentials)
+  const swaggerKey = `${key}-swagger.json`
+  await uploadSwaggerToS3(swagger, bucket, swaggerKey, region, awsCredentials)
+  if (typeof openapi !== 'undefined') {
+    const oas30Key = `${key}-oas30.json`
+    await uploadSwaggerToS3(oas30, bucket, oas30Key, region, awsCredentials) }
+  if (typeof yaml !== 'undefined') {
+    const swaggerYamlKey = `${key}-swagger.yaml`
+    await uploadSwaggerToS3(swaggeryaml, bucket, swaggerYamlKey, region, awsCredentials) }
+  if (typeof openapi !== 'undefined' && typeof yaml !== 'undefined') {
+    const oas30YamlKey = `${key}-oas30.yaml`
+    await uploadSwaggerToS3(oas30yaml, bucket, oas30YamlKey, region, awsCredentials) }
+
+  serverless.cli.consoleLog('ExportSwagger: Files uploaded to s3.')
 }
 
 /**
