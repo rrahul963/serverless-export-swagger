@@ -24,4 +24,7 @@ custom:
     s3KeyName: 'swagger/api.json'
     # optional, default: private
     acl: public-read
+    #optional settings to upload yaml and openapi files.
+    uploadOpenAPI: true
+    uploadYaml: true
 ```

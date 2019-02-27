@@ -1,6 +1,6 @@
 {
   "name": "serverless-export-swagger",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "export swagger definition to s3 ",
   "main": "src/index.js",
   "scripts": {
