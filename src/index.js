@@ -51,17 +51,17 @@ const uploadSwaggerToS3 = async function uploadSwaggerToS3(swagger, bucket, key,
   const putObjectAclParams = {
     Bucket: bucket,
     Key: key,
-    ACL: acl
+    ACL: acl,
   }
   const deleteObject = {
     Bucket: bucket,
     Key: key,
   }
-  await s3.putObject(putObjectParams).promise().then(object => {
-    return s3.putObjectAcl(putObjectAclParams).promise()
-      .then(_ => object)
-      .catch(err => s3.deleteObject(deleteObject).then(_ => Promise.reject(err)))
-  })
+  await s3.putObject(putObjectParams).promise().then(object => s3.putObjectAcl(putObjectAclParams).promise()
+    // eslint-disable-next-line no-unused-vars
+    .then(_ => object)
+    // eslint-disable-next-line no-unused-vars
+    .catch(err => s3.deleteObject(deleteObject).then(_ => Promise.reject(err))))
 }
 
 const getBucketKeyAndAcl = function getBucketAndKey(serverless) {
