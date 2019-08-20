@@ -38,25 +38,40 @@ const getSwagger = async function getSwagger(apiName, stage, region, creds) {
   return swagger
 }
 
-const uploadSwaggerToS3 = async function uploadSwaggerToS3(swagger, bucket, key, region, creds) {
+const uploadSwaggerToS3 = async function uploadSwaggerToS3(swagger, bucket, key, acl, region, creds) {
   const s3 = new AWS.S3({
     credentials: creds,
     region,
   })
-  await s3.putObject({
+  const putObjectParams = {
     Body: swagger.body,
     Bucket: bucket,
     Key: key,
-  }).promise()
+  }
+  const putObjectAclParams = {
+    Bucket: bucket,
+    Key: key,
+    ACL: acl,
+  }
+  const deleteObject = {
+    Bucket: bucket,
+    Key: key,
+  }
+  await s3.putObject(putObjectParams).promise().then(object => s3.putObjectAcl(putObjectAclParams).promise()
+    // eslint-disable-next-line no-unused-vars
+    .then(_ => object)
+    // eslint-disable-next-line no-unused-vars
+    .catch(err => s3.deleteObject(deleteObject).then(_ => Promise.reject(err))))
 }
 
-const getBucketAndKey = function getBucketAndKey(serverless) {
+const getBucketKeyAndAcl = function getBucketAndKey(serverless) {
   const bucket = serverless.service.custom.swaggerDestinations.s3BucketName
   const key = serverless.service.custom.swaggerDestinations.s3KeyName
+  const acl = serverless.service.custom.swaggerDestinations.acl ? serverless.service.custom.swaggerDestinations.acl : 'private'
   if (!bucket || !key) {
     throw new Error('ExportSwagger: Bucket name and key are required fields')
   }
-  return { bucket, key }
+  return { bucket, key, acl }
 };
 
 const exportApi = async function exportApi(serverless) {
@@ -65,10 +80,10 @@ const exportApi = async function exportApi(serverless) {
   const region = provider.getRegion()
   const stage = provider.getStage()
   const serviceName = serverless.service.getServiceName()
-  const { bucket, key } = getBucketAndKey(serverless)
+  const { bucket, key, acl } = getBucketKeyAndAcl(serverless)
   const apiName = await getApiName(serviceName, stage, region, awsCredentials)
   const swagger = await getSwagger(apiName, stage, region, awsCredentials)
-  await uploadSwaggerToS3(swagger, bucket, key, region, awsCredentials)
+  await uploadSwaggerToS3(swagger, bucket, key, acl, region, awsCredentials)
   serverless.cli.consoleLog('ExportSwagger: File uploaded to s3.')
 }
 
