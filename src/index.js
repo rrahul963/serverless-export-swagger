@@ -68,6 +68,7 @@ const exportApi = async function exportApi(serverless) {
   const { bucket, key } = getBucketAndKey(serverless)
   const apiName = await getApiName(serviceName, stage, region, awsCredentials)
   const swagger = await getSwagger(apiName, stage, region, awsCredentials)
+  serverless.cli.log('ExportSwagger: File upload to s3...')
   await uploadSwaggerToS3(swagger, bucket, key, region, awsCredentials)
   serverless.cli.consoleLog('ExportSwagger: File uploaded to s3.')
 }
