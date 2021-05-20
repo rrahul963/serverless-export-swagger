@@ -1,4 +1,5 @@
 const AWS = require('aws-sdk')
+const semver = require('semver')
 
 const getApiName = async function getApiName(serviceName, stage, region, creds) {
   const cfn = new AWS.CloudFormation({
@@ -21,11 +22,31 @@ const getApiName = async function getApiName(serviceName, stage, region, creds) 
   return apiName
 }
 
-const getSwagger = async function getSwagger(apiName, stage, region, creds) {
+const getSwagger = async function getSwagger(apiName, stage, region, creds, serverless) {
   const ag = new AWS.APIGateway({
     credentials: creds,
     region,
   })
+  // Get version of currently published documentation.
+  const apiStage = await ag.getStage({
+    restApiId: apiName,
+    stageName: stage,
+  }).promise()
+  // Pump up version.
+  let documentationVersion = '1.0.0'
+  if (apiStage.documentationVersion) {
+    documentationVersion = semver.clean(apiStage.documentationVersion)
+  }
+  serverless.cli.consoleLog(`ExportSwagger: Current API Version: ${documentationVersion}.`)
+  const bumpedVersion = semver.inc(documentationVersion, 'patch')
+  serverless.cli.consoleLog(`ExportSwagger: Next API Version: ${bumpedVersion}.`)
+  // Publish new version.
+  await ag.createDocumentationVersion({
+    documentationVersion: bumpedVersion,
+    restApiId: apiName,
+    stageName: stage,
+  }).promise()
+  // Get swagger export of newly published documentation version.
   const swagger = await ag.getExport({
     exportType: 'swagger',
     restApiId: apiName,
@@ -67,7 +88,7 @@ const exportApi = async function exportApi(serverless) {
   const serviceName = serverless.service.getServiceName()
   const { bucket, key } = getBucketAndKey(serverless)
   const apiName = await getApiName(serviceName, stage, region, awsCredentials)
-  const swagger = await getSwagger(apiName, stage, region, awsCredentials)
+  const swagger = await getSwagger(apiName, stage, region, awsCredentials, serverless)
   await uploadSwaggerToS3(swagger, bucket, key, region, awsCredentials)
   serverless.cli.consoleLog('ExportSwagger: File uploaded to s3.')
 }
@@ -88,3 +109,4 @@ class ExportSwagger {
 }
 
 module.exports = ExportSwagger
+
